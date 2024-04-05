@@ -14,4 +14,4 @@ Run the search:
 python main.py
 ```
 
-An [example](docsearch/search/main.py) of usage
+An [example](search/main.py) of usage
