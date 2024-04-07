@@ -1,16 +1,45 @@
 import os
-import re
 import zipfile
+
+from xml.etree import ElementTree
 
 from collections.abc import Generator
 
 from compoundfiles import CompoundFileReader
 
 
+__all__ = ['search_docx', 'search_doc', 'iter_docs']
+
+nsmap = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+
+
+def qn(tag: str) -> str:
+    """
+    Stands for 'qualified name', a utility function to turn a namespace
+    prefixed tag name into a Clark-notation qualified tag name for lxml. For
+    example, ``qn('p:cSld')`` returns ``'{http://schemas.../main}cSld'``.
+    Source: https://github.com/python-openxml/python-docx/
+    """
+    prefix, tagroot = tag.split(':')
+    uri = nsmap[prefix]
+    return '{{{}}}{}'.format(uri, tagroot)
+
+
 def search_docx(filepath: str, string: str) -> bool:
     zdoc = zipfile.ZipFile(filepath, mode='r')
-    xml_bytes = zdoc.read('word/document.xml')
-    return string.encode() in xml_bytes
+    xml = zdoc.read('word/document.xml').decode()
+    zdoc.close()
+    
+    text_pieces = []
+    root = ElementTree.fromstring(xml)
+    for child in root.iter():
+        if child.tag == qn('w:t'):
+            t_text = child.text
+            if t_text is not None:
+                text_pieces.append(t_text)
+
+    text = ''.join(text_pieces)
+    return string in text
 
 
 def search_doc(filepath: str, string: str) -> bool:
